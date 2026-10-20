@@ -1,56 +1,46 @@
-# Welcome to your Expo app 👋
+# Pocket Switchyard
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A cozy, offline-first arrow puzzle game for Android, built with Expo SDK 57, React Native, Expo Router and strict TypeScript.
 
-## Get started
+## Phase 1 status
 
-1. Install dependencies
+This checkpoint provides a branded home screen, a level list, a responsive static 4×4 board with directional cart tiles, disabled row controls, a pauseable preview, and typed game models. **Cart tapping, row shifts, undo, star scoring, saving, sound and haptics are not implemented yet.** Those are scheduled for subsequent phases.
 
-   ```bash
-   npm install
-   ```
+## Run on Android
 
-2. Start the app
+Requirements: Node.js, npm, Android emulator or compatible development build on a physical Android device.
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code using a compatible Expo Go (if supported for SDK 57) or open it in an Android development build. Press `a` to launch the Android emulator if configured.
 
-### Other setup steps
+Check the code and create a local Android JavaScript bundle:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```sh
+npx tsc --noEmit
+npx expo lint
+npx expo export --platform android
+```
 
-## Learn more
+For a future EAS preview APK after registering an Expo account and configuring EAS:
 
-To learn more about developing your project with Expo, look at the following resources:
+```sh
+npx eas-cli@latest build:configure
+npx eas-cli@latest build --platform android --profile preview
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+The preview profile and EAS configuration will be completed in Phase 5. The Android package ID in `app.json` is a placeholder.
 
-## Join the community
+## Structure
 
-Join our community of developers creating universal apps.
+- `src/app`: Expo Router screens and navigation
+- `src/components`: reusable cart drawing, board, row controls and buttons
+- `src/game`: serializable game types, authored level preview and engine primitives
+- `src/theme`: visual tokens
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Next
+
+Implement the pure game reducer, blocking and exit rules, cyclic row shifts, one-entry-per-action undo, restart, completion detection, and validate the first five solvable levels.
