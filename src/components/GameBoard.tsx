@@ -2,7 +2,7 @@ import { memo, useEffect } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { Board, Cell } from '@/game/types';
+import type { Board, Cell, GameAction } from '@/game/types';
 import type { BoardAnimation } from '@/hooks/useGame';
 import { palette } from '@/theme/tokens';
 
@@ -16,6 +16,9 @@ interface GameBoardProps {
   preview?: boolean;
   animation?: BoardAnimation | null;
   blocked?: { arrowId: string; nonce: number } | null;
+  hint?: GameAction | null;
+  maxCellSize?: number;
+  reducedMotion?: boolean;
   onArrowPress?: (arrowId: string) => void;
   onShiftRow?: (row: number, direction: 'LEFT' | 'RIGHT') => void;
   onAnimationComplete?: () => void;
@@ -30,11 +33,13 @@ interface LaneProps {
   locked: boolean;
   animation?: BoardAnimation | null;
   blocked?: { arrowId: string; nonce: number } | null;
+  hint?: GameAction | null;
+  reducedMotion?: boolean;
   onArrowPress?: (id: string) => void;
   onAnimationComplete?: () => void;
 }
 
-const RowLane = memo(function RowLane({ cells, rowIndex, size, locked, animation, blocked, onArrowPress, onAnimationComplete }: LaneProps) {
+const RowLane = memo(function RowLane({ cells, rowIndex, size, locked, animation, blocked, hint, reducedMotion, onArrowPress, onAnimationComplete }: LaneProps) {
   const travel = useSharedValue(0);
   const pitch = size + GAP;
   const span = cells.length * pitch;
@@ -69,6 +74,8 @@ const RowLane = memo(function RowLane({ cells, rowIndex, size, locked, animation
               onArrowPress={interactive ? onArrowPress : undefined}
               exitDistance={exitDistance}
               blockedNonce={interactive && cell?.id === blocked?.arrowId ? blocked?.nonce : undefined}
+              highlighted={interactive && hint?.type === 'EXIT_ARROW' && cell?.id === hint.arrowId}
+              reducedMotion={reducedMotion}
               onExitComplete={onAnimationComplete}
             />
           </View>
@@ -92,21 +99,21 @@ const RowLane = memo(function RowLane({ cells, rowIndex, size, locked, animation
 
 export const GameBoard = memo(function GameBoard({
   board, showRowControls = true, controlsDisabled = true, preview = false,
-  animation, blocked, onArrowPress, onShiftRow, onAnimationComplete,
+  animation, blocked, hint, maxCellSize = 66, reducedMotion = false, onArrowPress, onShiftRow, onAnimationComplete,
 }: GameBoardProps) {
   const { width } = useWindowDimensions();
   const count = board.length;
   const available = Math.max(140, Math.min(width, 520) - (showRowControls ? 172 : 110));
-  const cellSize = Math.max(30, Math.floor(Math.min(preview ? 48 : 66, (available - GAP * (count - 1)) / count)));
+  const cellSize = Math.max(26, Math.floor(Math.min(preview ? 48 : maxCellSize, (available - GAP * (count - 1)) / count)));
 
   return (
     <View style={styles.outer}>
       <View style={styles.rows}>
         {board.map((row, rowIndex) => (
           <View key={'row-' + rowIndex} style={[styles.row, { marginBottom: rowIndex === count - 1 ? 0 : GAP }]}>
-            {showRowControls && <RowControls side="LEFT" row={rowIndex} cellSize={cellSize} disabled={controlsDisabled} onPress={onShiftRow} />}
-            <RowLane cells={row} rowIndex={rowIndex} size={cellSize} locked={controlsDisabled || preview} animation={animation} blocked={blocked} onArrowPress={onArrowPress} onAnimationComplete={onAnimationComplete} />
-            {showRowControls && <RowControls side="RIGHT" row={rowIndex} cellSize={cellSize} disabled={controlsDisabled} onPress={onShiftRow} />}
+            {showRowControls && <RowControls side="LEFT" row={rowIndex} cellSize={cellSize} disabled={controlsDisabled} highlighted={hint?.type === 'SHIFT_ROW' && hint.row === rowIndex && hint.direction === 'LEFT'} onPress={onShiftRow} />}
+            <RowLane cells={row} rowIndex={rowIndex} size={cellSize} locked={controlsDisabled || preview} animation={animation} blocked={blocked} hint={hint} reducedMotion={reducedMotion} onArrowPress={onArrowPress} onAnimationComplete={onAnimationComplete} />
+            {showRowControls && <RowControls side="RIGHT" row={rowIndex} cellSize={cellSize} disabled={controlsDisabled} highlighted={hint?.type === 'SHIFT_ROW' && hint.row === rowIndex && hint.direction === 'RIGHT'} onPress={onShiftRow} />}
           </View>
         ))}
       </View>

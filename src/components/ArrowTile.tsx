@@ -17,10 +17,12 @@ interface ArrowTileProps {
   exitDistance?: number;
   blockedNonce?: number;
   onExitComplete?: () => void;
+  highlighted?: boolean;
+  reducedMotion?: boolean;
 }
 
 /** The arrow is drawn from Views to stay crisp at any device density. */
-export const ArrowTile = memo(function ArrowTile({ arrow, size, disabled = false, onPress, exitDistance, blockedNonce, onExitComplete }: ArrowTileProps) {
+export const ArrowTile = memo(function ArrowTile({ arrow, size, disabled = false, onPress, exitDistance, blockedNonce, onExitComplete, highlighted = false, reducedMotion = false }: ArrowTileProps) {
   const color = directionStyles[arrow.direction];
   const exitProgress = useSharedValue(0);
   const shakeX = useSharedValue(0);
@@ -35,9 +37,9 @@ export const ArrowTile = memo(function ArrowTile({ arrow, size, disabled = false
     });
   }, [exitDistance, exitProgress, onExitComplete]);
   useEffect(() => {
-    if (!blockedNonce) return;
+    if (!blockedNonce || reducedMotion) return;
     shakeX.value = withSequence(withTiming(-6, { duration: 45 }), withTiming(6, { duration: 80 }), withTiming(-3, { duration: 65 }), withTiming(0, { duration: 45 }));
-  }, [blockedNonce, shakeX]);
+  }, [blockedNonce, reducedMotion, shakeX]);
   const animated = useAnimatedStyle(() => {
     const distance = exitProgress.value * (exitDistance ?? 0);
     const horizontal = arrow.direction === 'LEFT' ? -distance : arrow.direction === 'RIGHT' ? distance : 0;
@@ -51,9 +53,10 @@ export const ArrowTile = memo(function ArrowTile({ arrow, size, disabled = false
         accessibilityLabel={arrow.direction.toLowerCase() + ' cart'}
         accessibilityHint="Send this cart off the board when its path is clear"
         accessibilityState={{ disabled }}
+        hitSlop={size < 44 ? 5 : 0}
         disabled={disabled}
         onPress={onPress}
-        style={[styles.tile, { width: size, height: size, borderRadius: Math.max(10, size * 0.24), backgroundColor: color.surface }]}
+        style={[styles.tile, { width: size, height: size, borderRadius: Math.max(10, size * 0.24), backgroundColor: color.surface }, highlighted && styles.highlight]}
       >
         <View style={[styles.symbol, { width: size * 0.58, height: size * 0.58, transform: [{ rotate: rotations[arrow.direction] }] }] }>
           <View style={[styles.shaft, { height: Math.max(3, size * 0.09), backgroundColor: color.icon }]} />
@@ -69,4 +72,5 @@ const styles = StyleSheet.create({
   symbol: { justifyContent: 'center', alignItems: 'center', flexDirection: 'row' },
   shaft: { width: '62%', borderRadius: 8 },
   arrowTip: { transform: [{ rotate: '45deg' }], marginLeft: -8 },
+  highlight: { borderWidth: 3, borderColor: '#167D6D', elevation: 3 },
 });

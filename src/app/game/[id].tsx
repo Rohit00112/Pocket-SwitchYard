@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +10,8 @@ import { GameButton } from '@/components/GameButton';
 import { getLevel, levels } from '@/game/levels';
 import { useProgress } from '@/game/progress';
 import { calculateStars } from '@/game/scoring';
-import type { LevelDefinition } from '@/game/types';
+import { findHint } from '@/game/solver';
+import type { GameAction, LevelDefinition } from '@/game/types';
 import { useGame } from '@/hooks/useGame';
 import { useSounds } from '@/hooks/useSounds';
 import { palette, radius } from '@/theme/tokens';
@@ -37,6 +38,8 @@ export default function GameScreen() {
 
 function GameSession({ level }: { level: LevelDefinition }) {
   const progress = useProgress();
+  const { height } = useWindowDimensions();
+  const compact = height < 760;
   const { settings } = progress;
   const playSound = useSounds(settings.sound);
   const onBlocked = useCallback(() => {
@@ -49,11 +52,63 @@ function GameSession({ level }: { level: LevelDefinition }) {
   }, [playSound, settings.haptics]);
   const game = useGame(level, settings.reducedMotion, onBlocked, onMoved);
   const { state, busy, animation, blocked, exitArrow, shift, undo, restart, togglePause, finishAnimation } = game;
+  const [hint, setHint] = useState<GameAction | null>(null);
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
+  const [hintLoading, setHintLoading] = useState(false);
+  const hintRequest = useRef<AbortController | null>(null);
+  const hintCache = useRef(new Map<string, GameAction>());
   const awardRecorded = useRef<number | null>(null);
   const stars = calculateStars(state.moves, level.parMoves);
   const isPaused = state.status === 'paused';
   const completed = state.status === 'complete';
   const nextLevel = levels.find((next) => next.id === level.id + 1);
+
+  const clearHint = useCallback(() => {
+    hintRequest.current?.abort();
+    hintRequest.current = null;
+    setHint(null);
+    setHintMessage(null);
+    setHintLoading(false);
+  }, []);
+
+  useEffect(() => () => {
+    hintRequest.current?.abort();
+  }, []);
+
+  const requestHint = useCallback(async () => {
+    if (busy || isPaused || completed || hintLoading) return;
+    const key = state.board.map((row) => row.map((cell) => cell ? cell.id + ':' + cell.direction : '.').join(',')).join('/');
+    const controller = new AbortController();
+    hintRequest.current = controller;
+    setHintLoading(true);
+    setHint(null);
+    setHintMessage('Finding a safe route…');
+    const cached = hintCache.current.get(key);
+    const action = cached ?? await findHint(state.board, { signal: controller.signal, batchSize: 400 });
+    if (controller.signal.aborted) return;
+    hintRequest.current = null;
+    setHintLoading(false);
+    if (action) {
+      hintCache.current.set(key, action);
+      setHint(action);
+      setHintMessage(action.type === 'EXIT_ARROW'
+        ? 'Tap the outlined cart to send it out.'
+        : action.type === 'SHIFT_ROW'
+          ? 'Press the outlined ' + (action.direction === 'LEFT' ? 'left' : 'right') + ' control beside row ' + (action.row + 1) + '.'
+          : null);
+    } else {
+      setHintMessage('No short solution found from here. Try undoing your last move.');
+    }
+  }, [busy, completed, hintLoading, isPaused, state.board]);
+
+  const tapArrow = useCallback((id: string) => { clearHint(); exitArrow(id); }, [clearHint, exitArrow]);
+  const tapShift = useCallback((row: number, direction: 'LEFT' | 'RIGHT') => { clearHint(); shift(row, direction); }, [clearHint, shift]);
+  const tapUndo = useCallback(() => { clearHint(); undo(); }, [clearHint, undo]);
+  const tapRestart = useCallback(() => {
+    clearHint();
+    awardRecorded.current = null;
+    restart();
+  }, [clearHint, restart]);
 
   useEffect(() => {
     if (completed && awardRecorded.current !== state.moves) {
@@ -74,18 +129,19 @@ function GameSession({ level }: { level: LevelDefinition }) {
             <Pressable accessibilityRole="button" accessibilityLabel={isPaused ? 'Resume' : 'Pause'} accessibilityState={{ disabled: busy || completed }} disabled={busy || completed} style={[styles.iconButton, (busy || completed) && styles.dimmed]} onPress={togglePause}><Text style={styles.pauseIcon}>{isPaused ? '▶' : 'Ⅱ'}</Text></Pressable>
           </View>
 
-          <View style={styles.levelInfo}><View><Text style={styles.levelName}>{level.title}</Text><Text style={styles.levelDetail}>PAR {level.parMoves} MOVES · {level.difficulty.toUpperCase()}</Text></View><View style={styles.movesPill}><Text style={styles.movesCount}>{state.moves}</Text><Text style={styles.movesLabel}>MOVES</Text></View></View>
+          <View style={[styles.levelInfo, compact && styles.compactInfo]}><View style={styles.levelCopy}><Text style={styles.levelName}>{level.title}</Text><Text style={styles.levelDetail}>PAR {level.parMoves} MOVES · {level.difficulty.toUpperCase()}</Text></View><View style={styles.movesPill}><Text style={styles.movesCount}>{state.moves}</Text><Text style={styles.movesLabel}>MOVES</Text></View></View>
 
-          <View style={styles.boardCard}>
+          <View style={[styles.boardCard, compact && styles.compactBoardCard]}>
             <View style={styles.boardTop}><View style={styles.previewDot} /><Text style={styles.boardLabel}>LIVE SWITCHYARD</Text><View style={styles.boardTopFill} /><Text style={styles.boardSize}>{level.size} × {level.size}</Text></View>
-            <View style={styles.boardCenter}><GameBoard board={state.board} controlsDisabled={busy || isPaused || completed} animation={animation} blocked={blocked} onArrowPress={exitArrow} onShiftRow={shift} onAnimationComplete={finishAnimation} /></View>
-            <View style={styles.boardFooter}><Text style={styles.boardFooterText}>{level.id <= 5 ? 'Tap a clear cart · Start with an unblocked arrow' : 'Shift rows using ‹ and ›, then clear each arrow'}</Text></View>
+            <View style={[styles.boardCenter, compact && styles.compactBoardCenter]}><GameBoard board={state.board} controlsDisabled={busy || isPaused || completed} animation={animation} blocked={blocked} hint={hint} reducedMotion={settings.reducedMotion} maxCellSize={compact ? 51 : 66} onArrowPress={tapArrow} onShiftRow={tapShift} onAnimationComplete={finishAnimation} /></View>
+            <View style={styles.boardFooter}><Text style={styles.boardFooterText}>{blocked ? 'That cart is blocked. Clear its path first.' : compact ? level.tutorial : level.id <= 5 ? 'Tap a clear cart · Start with an unblocked arrow' : 'Shift rows using ‹ and ›, then clear each arrow'}</Text></View>
             {isPaused && <View style={styles.pauseOverlay}><Text style={styles.pausedTitle}>On a little break?</Text><Text style={styles.pausedText}>The switchyard is ready when you are.</Text><GameButton title="Resume game" onPress={togglePause} style={styles.resume} /><GameButton title="Level selection" kind="secondary" onPress={() => router.replace('/levels')} style={styles.resume} /></View>}
           </View>
 
-          <View style={styles.guideCard}><View style={styles.guideMark}><Text style={styles.guideMarkText}>i</Text></View><View style={styles.guideCopy}><Text style={styles.guideTitle}>How it works</Text><Text style={styles.guideText}>{level.tutorial}{level.id >= 6 ? ' Every shift wraps a full row.' : ''}</Text></View></View>
-          <View style={styles.actionRow}><GameButton title="Undo" kind="secondary" disabled={busy || state.history.length === 0 || isPaused || completed} onPress={undo} style={styles.actionButton} /><GameButton title="Restart" kind="secondary" disabled={busy || isPaused || completed} onPress={restart} style={styles.actionButton} /><GameButton title="Hint · soon" kind="secondary" disabled style={styles.actionButton} /></View>
-          <Text style={styles.phaseNote}>ALL CARTS MUST EXIT TO WIN</Text>
+          {!compact && <View style={styles.guideCard}><View style={styles.guideMark}><Text style={styles.guideMarkText}>i</Text></View><View style={styles.guideCopy}><Text style={styles.guideTitle}>How it works</Text><Text style={styles.guideText}>{level.tutorial}{level.id >= 6 ? ' Every shift wraps a full row.' : ''}</Text></View></View>}
+          {hintMessage && <Text accessibilityRole="text" style={styles.hintMessage}>{hintMessage}</Text>}
+          <View style={[styles.actionRow, compact && styles.compactActions]}><GameButton title="Undo" kind="secondary" disabled={busy || state.history.length === 0 || isPaused || completed} onPress={tapUndo} style={styles.actionButton} /><GameButton title="Restart" kind="secondary" disabled={busy || isPaused || completed} onPress={tapRestart} style={styles.actionButton} /><GameButton title={hintLoading ? 'Thinking…' : 'Hint'} kind="secondary" disabled={busy || isPaused || completed || hintLoading} onPress={() => void requestHint()} style={styles.actionButton} /></View>
+          {!compact && <Text style={styles.phaseNote}>ALL CARTS MUST EXIT TO WIN</Text>}
         </View>
       </ScrollView>
       {completed && (
@@ -95,9 +151,9 @@ function GameSession({ level }: { level: LevelDefinition }) {
             <Text style={styles.completeTitle}>Switchyard cleared!</Text>
             <Animated.Text entering={settings.reducedMotion ? undefined : FadeInDown.delay(180).duration(400)} style={styles.stars} accessibilityLabel={stars + ' out of three stars'}>{'★'.repeat(stars)}<Text style={styles.emptyStars}>{'☆'.repeat(3 - stars)}</Text></Animated.Text>
             <Text style={styles.completeMoves}>{state.moves} moves · Par {level.parMoves}</Text>
-            <Text style={styles.completeBest}>Best in this session: {Math.min(state.moves, progress.records[level.id]?.bestMoves ?? state.moves)} moves</Text>
-            {nextLevel ? <GameButton title={'Continue · Level ' + nextLevel.id} accessory="→" onPress={() => router.replace({ pathname: '/game/[id]', params: { id: String(nextLevel.id) } })} style={styles.completeButton} /> : <Text style={styles.completeBest}>You cleared all five starter puzzles!</Text>}
-            <GameButton title="Play again" kind="secondary" onPress={restart} style={styles.completeButton} />
+            <Text style={styles.completeBest}>Best on this device: {Math.min(state.moves, progress.records[level.id]?.bestMoves ?? state.moves)} moves</Text>
+            {nextLevel ? <GameButton title={'Continue · Level ' + nextLevel.id} accessory="→" onPress={() => router.replace({ pathname: '/game/[id]', params: { id: String(nextLevel.id) } })} style={styles.completeButton} /> : <Text style={styles.completeBest}>You cleared every switchyard. Amazing work!</Text>}
+            <GameButton title="Play again" kind="secondary" onPress={tapRestart} style={styles.completeButton} />
             <GameButton title="Level selection" kind="ghost" onPress={() => router.replace('/levels')} style={styles.completeButton} />
           </Animated.View>
         </View>
@@ -118,27 +174,34 @@ const styles = StyleSheet.create({
   eyebrow: { color: palette.teal, letterSpacing: 1.5, fontSize: 9, fontWeight: '900' },
   heading: { color: palette.ink, fontWeight: '900', fontSize: 22, marginTop: 3 },
   levelInfo: { marginTop: 32, marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  levelCopy: { flex: 1, paddingRight: 10 },
+  compactInfo: { marginTop: 12, marginBottom: 12 },
   levelName: { fontWeight: '900', fontSize: 25, letterSpacing: -0.8, color: palette.ink },
   levelDetail: { color: '#9AA4B0', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginTop: 6 },
   movesPill: { width: 69, height: 69, borderRadius: 23, backgroundColor: palette.yellowPale, alignItems: 'center', justifyContent: 'center' },
   movesCount: { color: palette.ink, fontWeight: '900', fontSize: 24, lineHeight: 30 },
   movesLabel: { fontWeight: '900', fontSize: 9, letterSpacing: 1, color: '#A38C63' },
   boardCard: { backgroundColor: palette.white, borderRadius: radius.xl, paddingHorizontal: 11, paddingTop: 20, paddingBottom: 19, borderWidth: 1, borderColor: palette.stroke, shadowColor: palette.shadow, shadowOpacity: 0.06, shadowRadius: 22, shadowOffset: { width: 0, height: 9 }, elevation: 2, overflow: 'hidden' },
+  compactBoardCard: { paddingTop: 12, paddingBottom: 12 },
   boardTop: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 9 },
   previewDot: { width: 7, height: 7, backgroundColor: palette.coral, borderRadius: 4 },
   boardLabel: { color: palette.muted, fontWeight: '900', fontSize: 10, letterSpacing: 1.4 },
   boardTopFill: { flex: 1 },
   boardSize: { color: '#9AA4B0', fontSize: 12, fontWeight: '800' },
   boardCenter: { alignItems: 'center', justifyContent: 'center', marginTop: 22, marginBottom: 14 },
+  compactBoardCenter: { marginTop: 12, marginBottom: 9 },
   boardFooter: { alignItems: 'center', marginHorizontal: 8 },
   boardFooterText: { fontSize: 10, lineHeight: 17, color: palette.muted, textAlign: 'center' },
   guideCard: { flexDirection: 'row', backgroundColor: palette.tealPale, padding: 16, borderRadius: 19, marginTop: 20, gap: 12 },
+  compactGuide: { padding: 11, marginTop: 10 },
+  hintMessage: { color: '#166D61', backgroundColor: '#DDF7EE', borderColor: palette.teal, borderWidth: 1, borderRadius: 12, padding: 11, fontSize: 12, fontWeight: '700', marginTop: 10, lineHeight: 18 },
   guideMark: { backgroundColor: palette.teal, height: 27, width: 27, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   guideMarkText: { color: palette.white, fontWeight: '900', fontSize: 17 },
   guideCopy: { flex: 1 },
   guideTitle: { fontWeight: '900', fontSize: 14, color: palette.ink },
   guideText: { color: '#457D77', fontSize: 12, lineHeight: 19, marginTop: 5 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
+  compactActions: { marginTop: 12 },
   actionButton: { flex: 1, paddingHorizontal: 6 },
   phaseNote: { color: '#B6B8B7', fontSize: 9, fontWeight: '900', letterSpacing: 1.8, textAlign: 'center', marginTop: 20 },
   pauseOverlay: { ...StyleSheet.absoluteFill, zIndex: 10, backgroundColor: 'rgba(248,246,242,0.97)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 25 },

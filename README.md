@@ -1,21 +1,22 @@
 # Pocket Switchyard
 
-A cozy Android-first offline arrow puzzle made with Expo SDK 57, React Native, Expo Router, Reanimated and strict TypeScript.
+A cozy, offline Android-first arrow puzzle built with **Expo SDK 57**, React Native, TypeScript, Expo Router, Reanimated, AsyncStorage, and lightweight sound and haptic feedback.
 
-## Current checkpoint — Phase 3
+## Phase 4 checkpoint — 40 playable puzzles
 
-- Ten authored, solver-verified 4×4 levels: levels 1–5 teach exit order; levels 6–10 require shifting rows.
-- Tap an arrow if the cells ahead of it to the relevant edge are all empty; otherwise it shakes without using a move.
-- Shift whole rows with ‹ and ›, with one-cell cyclic wraparound and animation input locking.
-- Undo, restart, pause, completion results, best moves and par-based 1–3 star scoring.
-- Versioned AsyncStorage save restores completed levels, stars, best move counts, and settings on next launch. Corrupted and outdated saves fall back safely.
-- Settings: sound effects, haptic feedback, reduced motion, and confirmed reset of progression while preserving settings.
-- Small bundled sound cues on valid move, blocked arrow and success; Reanimated completion reveal respects reduced motion.
-- Contextual tutorial text and clear hints for early levels. Hint action remains disabled until actual logic is built.
+- 40 fixed, validated **4×4** puzzles in four chapters (some are transformed variations of established puzzle patterns).
+- Levels 1–5 teach arrow escape order; levels 6–40 require row shifts in the solver's shortest winning solutions.
+- Every level has a checked minimum-move solution, sequential unlock, a par score, and 1–3 star completion rating.
+- Tap a cart to exit along its facing direction if its full path is clear. Blocked arrows shake and cost no moves.
+- Left and right row controls shift one cell with cyclic wraparound. Undo, restart, pause, replay, and continue are available.
+- **Hint now works:** on tap, a cancelable, chunked BFS finds the next action from the *current board* and highlights the right cart or row control. A bounded search can sometimes reach its limit after unusual shifts; the UI explains when this happens.
+- Progress, best move counts, stars, sound, haptics, and reduced motion persist locally using a validated, versioned AsyncStorage save. Reset requires confirmation.
+- Reduced motion skips cart movement/shake and victory reveals; compact layouts prioritize board and action buttons on shorter screens.
+- Offline sound effects and haptics can be disabled in Settings.
 
-All game data stays on the device; no backend or account is required.
+The app contains no ads, tracking, backend, authentication, multiplayer or payments.
 
-## Start on Android
+## Run on Android
 
 ```sh
 cd /path/to/pocket-switchyard
@@ -23,9 +24,9 @@ npm install
 npx expo start
 ```
 
-Open the Expo QR code with an SDK-57-compatible Expo Go or a development build. Press `a` for a configured Android emulator. Native dependencies now include AsyncStorage, expo-audio and expo-haptics. If running a previously built native app, make a new development build after adding these modules.
+Use an **SDK 57 compatible** Expo Go installation or development build. Press `a` in Metro when an Android emulator is configured. Rebuild existing development clients after changes to installed native modules.
 
-## Validate
+## Automated checks
 
 ```sh
 npm test
@@ -34,22 +35,23 @@ npx expo lint
 npx expo export --platform android
 ```
 
-Automated tests verify movement rules, row wrapping, undo/restart, scoring, authored-level shortest winning sequences, and save-data parsing. Real-device QA is still needed for sound playback, haptics, animation smoothness, rapid taps, small screens, background/resume and cold-start restoration.
+Tests validate each of the 40 boards with bounded BFS, replay the solver's shortest winning sequence, verify par and shift requirements, test immutable move/undo/restart behavior, validate cancelable hint searches, and test save-data parsing.
 
-## Project locations
+## Manual testing
 
-- `src/app`: Expo Router screens (Home, Levels, Game, Settings)
-- `src/components`: board, arrow tile, controls, buttons, branding
-- `src/game`: pure engine, scoring, BFS solver, curated levels, progression provider
-- `src/hooks`: UI timing and sound effects
-- `src/storage/save.ts`: versioned persisted-save format, sanitization and storage
-- `assets/sounds`: original short offline WAV cues
-- `tests`: game, level and saved-data tests
+See [docs/ANDROID_QA.md](docs/ANDROID_QA.md) for device test cases, including small screens, very quick taps, row wraparound, hints after detours, backgrounding, progress restoration, sound/haptics and reduced motion. An Android production bundle is **not** an installable APK; the app has not yet been verified on physical Android hardware.
 
-## Next — Phase 4
+## Main modules
 
-Grow the content to 40 validated boards, add real hints using a cached solver path, improve animations/layout for smaller Android devices, and conduct manual regression testing.
+- `src/app`: Home, Levels, Gameplay and Settings via Expo Router
+- `src/components`: puzzle tiles, board, controls, reusable visual elements
+- `src/game/engine.ts`: pure immutable game transitions
+- `src/game/solver.ts`: bounded search, resumable hint search, puzzle validation
+- `src/game/levels.ts`: 40 serialized board definitions and par move counts
+- `src/game/progress.tsx` and `src/storage/save.ts`: progress and settings persistence
+- `src/hooks/useGame.ts`: animation input lock and gameplay orchestration
+- `tests`: engine, solver, hints and save validation
 
-## Android release
+## Next: Phase 5
 
-The package identifier `com.example.pocketswitchyard` in `app.json` is a placeholder. Phase 5 will add EAS profiles, final icons/splash art, installable preview APK and Play Store testing preparation. Android JavaScript export alone is not an APK.
+Create original icon and splash assets, configure EAS build profiles, replace the placeholder Android package ID, build a preview APK and production AAB, run the device QA checklist, and prepare Google Play closed testing.

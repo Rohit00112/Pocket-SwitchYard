@@ -6,6 +6,13 @@ import { getLevel, levels } from '@/game/levels';
 import { useProgress } from '@/game/progress';
 import { palette, radius } from '@/theme/tokens';
 
+const chapters = [
+  { title: 'Getting rolling', description: 'Learn the exits', from: 1, to: 10 },
+  { title: 'Finding your rhythm', description: 'The next routes', from: 11, to: 20 },
+  { title: 'Busy intersections', description: 'Plan every shift', from: 21, to: 30 },
+  { title: 'Master dispatch', description: 'Your final challenge', from: 31, to: 40 },
+] as const;
+
 export default function LevelsScreen() {
   const { records, unlocked } = useProgress();
   return (
@@ -15,30 +22,40 @@ export default function LevelsScreen() {
           <Pressable accessibilityLabel="Back to home" accessibilityRole="button" onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
           <Text style={styles.eyebrow}>CHOOSE YOUR ROUTE</Text>
           <Text style={styles.title}>Little adventures,{ '\n' }one grid at a time.</Text>
-          <Text style={styles.subheading}>Clear each route to unlock the next. Ten puzzles are ready for you.</Text>
-          <View style={styles.grid}>
-            {Array.from({ length: 10 }, (_, i) => {
-              const id = i + 1;
-              const level = getLevel(id);
-              const available = !!level && id <= unlocked;
-              const record = records[id];
-              return (
-                <Pressable
-                  key={id}
-                  accessibilityRole="button"
-                  accessibilityLabel={record ? 'Level ' + id + ' completed with ' + record.stars + ' stars' : available ? 'Play level ' + id : 'Level ' + id + ' locked'}
-                  accessibilityState={{ disabled: !available }}
-                  disabled={!available}
-                  onPress={() => router.push({ pathname: '/game/[id]', params: { id: String(id) } })}
-                  style={[styles.tile, available && styles.unlocked, !!record && styles.completed]}
-                >
-                  <Text style={styles.tileTop}>{record ? 'DONE' : available ? 'READY' : level ? 'LOCKED' : 'SOON'}</Text>
-                  <Text style={[styles.tileNumber, !available && styles.lockedNumber]}>{String(id).padStart(2, '0')}</Text>
-                  <Text style={[styles.tileBottom, available && styles.readyLabel]}>{record ? '★'.repeat(record.stars) : available ? 'PLAY →' : 'LOCKED'}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text style={styles.subheading}>Clear each route to unlock the next. {levels.length} hand-crafted puzzles are ready.</Text>
+          {chapters.map((chapter) => (
+            <View key={chapter.title} style={styles.chapter}>
+              <View style={styles.chapterHeader}>
+                <View>
+                  <Text style={styles.chapterName}>{chapter.title}</Text>
+                  <Text style={styles.chapterDescription}>{chapter.description} · {chapter.from}–{chapter.to}</Text>
+                </View>
+                <Text style={styles.chapterCount}>{levels.filter((level) => level.id >= chapter.from && level.id <= chapter.to && !!records[level.id]).length}/{chapter.to - chapter.from + 1}</Text>
+              </View>
+              <View style={styles.grid}>
+                {levels.filter((level) => level.id >= chapter.from && level.id <= chapter.to).map((level) => {
+                  const id = level.id;
+                  const available = !!getLevel(id) && id <= unlocked;
+                  const record = records[id];
+                  return (
+                    <Pressable
+                      key={id}
+                      accessibilityRole="button"
+                      accessibilityLabel={record ? 'Level ' + id + ' completed with ' + record.stars + ' stars' : available ? 'Play level ' + id : 'Level ' + id + ' locked'}
+                      accessibilityState={{ disabled: !available }}
+                      disabled={!available}
+                      onPress={() => router.push({ pathname: '/game/[id]', params: { id: String(id) } })}
+                      style={[styles.tile, available && styles.unlocked, !!record && styles.completed]}
+                    >
+                      <Text style={styles.tileTop}>{record ? 'DONE' : available ? 'READY' : 'LOCKED'}</Text>
+                      <Text style={[styles.tileNumber, !available && styles.lockedNumber]}>{String(id).padStart(2, '0')}</Text>
+                      <Text style={[styles.tileBottom, available && styles.readyLabel]}>{record ? '★'.repeat(record.stars) : available ? 'PLAY →' : 'LOCKED'}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
           <Text style={styles.note}>Available now: {levels.length} solver-verified puzzles. Stars and best moves are saved on this device.</Text>
         </View>
       </ScrollView>
@@ -55,7 +72,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#269F93', fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 12 },
   title: { color: palette.ink, fontSize: 32, fontWeight: '900', letterSpacing: -1.1, lineHeight: 38 },
   subheading: { marginTop: 14, color: palette.muted, fontSize: 14, lineHeight: 22, maxWidth: 350 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 34 },
+  chapter: { marginTop: 30 },
+  chapterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  chapterName: { color: palette.ink, fontWeight: '900', fontSize: 18 },
+  chapterDescription: { color: palette.muted, fontSize: 11, marginTop: 4 },
+  chapterCount: { color: '#4B988A', fontWeight: '900', fontSize: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', marginTop: 14 },
   tile: { width: '22%', aspectRatio: 0.79, minHeight: 107, backgroundColor: '#EBE8E2', borderRadius: radius.md, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13 },
   unlocked: { backgroundColor: palette.tealPale, borderWidth: 2, borderColor: palette.teal },
   completed: { backgroundColor: palette.yellowPale, borderColor: palette.yellow },

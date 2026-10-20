@@ -4,8 +4,8 @@ import { solveLevel, validateLevel } from '../src/game/solver';
 import type { LevelDefinition } from '../src/game/types';
 
 describe('puzzle pack', () => {
-  test('contains ten distinct sequential valid 4x4 boards', () => {
-    expect(levels.map((level) => level.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  test('contains 40 distinct sequential valid 4x4 boards', () => {
+    expect(levels.map((level) => level.id)).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
     const layouts = new Set<string>();
     for (const level of levels) {
       expect(level.size).toBe(4);
