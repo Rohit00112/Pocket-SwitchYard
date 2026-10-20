@@ -6,11 +6,14 @@ import { BrandMark } from '@/components/BrandMark';
 import { GameBoard } from '@/components/GameBoard';
 import { GameButton } from '@/components/GameButton';
 import { levels } from '@/game/levels';
+import { useProgress } from '@/game/progress';
 import { palette, radius, space } from '@/theme/tokens';
 
 const openingLevel = levels[0];
 
 export default function HomeScreen() {
+  const progress = useProgress();
+  const nextLevel = levels.find((level) => !progress.records[level.id]) ?? levels[levels.length - 1];
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -43,10 +46,10 @@ export default function HomeScreen() {
 
           <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
-              <View><Text style={styles.progressOverline}>YOUR JOURNEY STARTS HERE</Text><Text style={styles.progressTitle}>Level 01 <Text style={styles.levelTitle}> / {openingLevel.title}</Text></Text></View>
-              <View style={styles.starBadge}><Text style={styles.starGlyph}>★</Text><Text style={styles.starNumber}>0</Text></View>
+              <View><Text style={styles.progressOverline}>YOUR JOURNEY CONTINUES</Text><Text style={styles.progressTitle}>Level {String(nextLevel.id).padStart(2, '0')} <Text style={styles.levelTitle}> / {nextLevel.title}</Text></Text></View>
+              <View style={styles.starBadge}><Text style={styles.starGlyph}>★</Text><Text style={styles.starNumber}>{progress.totalStars}</Text></View>
             </View>
-            <GameButton title="Let's play" accessory="→" onPress={() => router.push('/game/1')} />
+            <GameButton title={progress.completedCount ? 'Keep playing' : "Let's play"} accessory="→" onPress={() => router.push({ pathname: '/game/[id]', params: { id: String(nextLevel.id) } })} />
           </View>
 
           <View style={styles.secondaryRow}>

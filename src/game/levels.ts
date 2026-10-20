@@ -1,27 +1,20 @@
 import type { Arrow, Board, Direction, LevelDefinition } from './types';
 
-function cart(id: string, direction: Direction): Arrow {
-  return { id, direction };
+// A dot is empty; U/D/L/R represent the arrow facing that direction.
+function board(rows: readonly string[]): Board {
+  return rows.map((row, r) => [...row].map((token, c): Arrow | null => {
+    const directions: Record<string, Direction> = { U: 'UP', D: 'DOWN', L: 'LEFT', R: 'RIGHT' };
+    return token === '.' ? null : { id: `r${r}c${c}`, direction: directions[token] };
+  }));
 }
 
-/** Phase 1 artwork and board preview. Solvability checks arrive with the Phase 2 rules. */
-const firstBoard: Board = [
-  [cart('a', 'RIGHT'), null, cart('b', 'UP'), null],
-  [cart('c', 'UP'), cart('d', 'DOWN'), null, cart('e', 'LEFT')],
-  [cart('f', 'RIGHT'), null, cart('g', 'LEFT'), cart('h', 'UP')],
-  [null, cart('i', 'RIGHT'), cart('j', 'DOWN'), null],
-];
-
+/** Authored starter puzzles. Shortest path and par are checked in tests by BFS. */
 export const levels: readonly LevelDefinition[] = [
-  {
-    id: 1,
-    title: 'First departure',
-    size: 4,
-    initialBoard: firstBoard,
-    parMoves: 12,
-    difficulty: 'easy',
-    tutorial: 'Clear a path to the edge to send each cart on its way.',
-  },
+  { id: 1, title: 'First departure', size: 4, initialBoard: board(['..U.', '.R..', '..L.', '...D']), parMoves: 4, difficulty: 'easy', tutorial: 'Tap a cart when the space in front of it is empty all the way to the edge.' },
+  { id: 2, title: 'Make some room', size: 4, initialBoard: board(['.U..', 'RR..', '.D..', '.L..']), parMoves: 5, difficulty: 'easy', tutorial: 'A cart blocks another cart. Clear the front cart first.' },
+  { id: 3, title: 'One at a time', size: 4, initialBoard: board(['.D..', 'RR..', '..U.', '..L.']), parMoves: 5, difficulty: 'easy', tutorial: 'Follow the chain: one delivery cart might be holding up several others.' },
+  { id: 4, title: 'Around the bend', size: 4, initialBoard: board(['.D.L', 'RR..', '.LL.', 'R...']), parMoves: 7, difficulty: 'medium', tutorial: 'Look for a free cart first. Clearing one route can open many more.' },
+  { id: 5, title: 'The little junction', size: 4, initialBoard: board(['.DLL', 'RR..', '.LL.', 'R..D']), parMoves: 9, difficulty: 'medium', tutorial: 'Plan your escape order carefully. Remember, you can always undo your last move.' },
 ];
 
 export function getLevel(id: number): LevelDefinition | undefined {

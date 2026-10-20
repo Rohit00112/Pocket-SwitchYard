@@ -7,7 +7,7 @@ interface RowControlsProps { side: 'LEFT' | 'RIGHT'; row: number; cellSize: numb
 
 export const RowControls = memo(function RowControls({ side, row, cellSize, disabled, onPress }: RowControlsProps) {
   return (
-    <View style={[styles.slot, { height: cellSize }]}>
+    <View style={[styles.slot, { height: Math.max(44, cellSize) }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={'Shift row ' + (row + 1) + ' ' + side.toLowerCase()}
@@ -23,8 +23,8 @@ export const RowControls = memo(function RowControls({ side, row, cellSize, disa
 });
 
 const styles = StyleSheet.create({
-  slot: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  control: { width: 30, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.white, borderWidth: 1, borderColor: palette.stroke },
+  slot: { width: 40, alignItems: 'center', justifyContent: 'center' },
+  control: { width: 40, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.white, borderWidth: 1, borderColor: palette.stroke },
   pressed: { transform: [{ scale: 0.92 }] },
   arrow: { color: palette.ink, fontSize: 29, fontWeight: '600', lineHeight: 31, marginTop: -3 },
   disabled: { color: '#B4BDC4' },
