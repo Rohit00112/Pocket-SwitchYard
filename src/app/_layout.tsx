@@ -11,6 +11,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="levels" />
         <Stack.Screen name="game/[id]" />
+        <Stack.Screen name="settings" />
       </Stack>
       <StatusBar style="dark" />
     </ProgressProvider>

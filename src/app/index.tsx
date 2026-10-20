@@ -54,7 +54,7 @@ export default function HomeScreen() {
 
           <View style={styles.secondaryRow}>
             <GameButton title="Select level" kind="secondary" onPress={() => router.push('/levels')} style={styles.halfButton} />
-            <GameButton title="Settings · soon" kind="secondary" disabled style={styles.halfButton} />
+            <GameButton title="Settings" kind="secondary" onPress={() => router.push('/settings')} style={styles.halfButton} />
           </View>
           <Text style={styles.footer}>NO RUSH. JUST ONE MORE PUZZLE.</Text>
         </View>

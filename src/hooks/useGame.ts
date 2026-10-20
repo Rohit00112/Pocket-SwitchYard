@@ -8,7 +8,7 @@ export type BoardAnimation =
   | { readonly type: 'EXIT_ARROW'; readonly arrowId: string }
   | { readonly type: 'SHIFT_ROW'; readonly row: number; readonly direction: 'LEFT' | 'RIGHT' };
 
-export function useGame(level: LevelDefinition) {
+export function useGame(level: LevelDefinition, reducedMotion = false, onBlocked?: () => void, onMoved?: () => void) {
   const [state, setState] = useState<GameState>(() => createInitialGame(level));
   const stateRef = useRef(state);
   const pendingRef = useRef<GameAction | null>(null);
@@ -42,12 +42,19 @@ export function useGame(level: LevelDefinition) {
     const result = applyGameAction(stateRef.current, action, level);
     if (!result.changed) {
       if (result.reason === 'blocked' && action.type === 'EXIT_ARROW') {
+        onBlocked?.();
         blockedCount.current++;
         setBlocked({ arrowId: action.arrowId, nonce: blockedCount.current });
       }
       return;
     }
     if (action.type === 'EXIT_ARROW' || action.type === 'SHIFT_ROW') {
+      onMoved?.();
+      if (reducedMotion) {
+        update(result.state);
+        setBlocked(null);
+        return;
+      }
       busyRef.current = true; // Synchronous guard against multi-taps within the same frame.
       pendingRef.current = action;
       setBlocked(null);
@@ -56,7 +63,7 @@ export function useGame(level: LevelDefinition) {
       setBlocked(null);
       update(result.state);
     }
-  }, [level, update]);
+  }, [level, onBlocked, onMoved, reducedMotion, update]);
 
   const exitArrow = useCallback((arrowId: string) => {
     if (!findArrow(stateRef.current.board, arrowId)) return;

@@ -1,6 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GameBoard } from '@/components/GameBoard';
@@ -10,6 +12,7 @@ import { useProgress } from '@/game/progress';
 import { calculateStars } from '@/game/scoring';
 import type { LevelDefinition } from '@/game/types';
 import { useGame } from '@/hooks/useGame';
+import { useSounds } from '@/hooks/useSounds';
 import { palette, radius } from '@/theme/tokens';
 
 export default function GameScreen() {
@@ -33,9 +36,19 @@ export default function GameScreen() {
 }
 
 function GameSession({ level }: { level: LevelDefinition }) {
-  const game = useGame(level);
-  const { state, busy, animation, blocked, exitArrow, shift, undo, restart, togglePause, finishAnimation } = game;
   const progress = useProgress();
+  const { settings } = progress;
+  const playSound = useSounds(settings.sound);
+  const onBlocked = useCallback(() => {
+    playSound('blocked');
+    if (settings.haptics) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+  }, [playSound, settings.haptics]);
+  const onMoved = useCallback(() => {
+    playSound('move');
+    if (settings.haptics) void Haptics.selectionAsync().catch(() => {});
+  }, [playSound, settings.haptics]);
+  const game = useGame(level, settings.reducedMotion, onBlocked, onMoved);
+  const { state, busy, animation, blocked, exitArrow, shift, undo, restart, togglePause, finishAnimation } = game;
   const awardRecorded = useRef<number | null>(null);
   const stars = calculateStars(state.moves, level.parMoves);
   const isPaused = state.status === 'paused';
@@ -46,8 +59,10 @@ function GameSession({ level }: { level: LevelDefinition }) {
     if (completed && awardRecorded.current !== state.moves) {
       awardRecorded.current = state.moves;
       progress.complete(level.id, state.moves, stars);
+      playSound('win');
+      if (settings.haptics) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  }, [completed, level.id, progress, stars, state.moves]);
+  }, [completed, level.id, playSound, progress, settings.haptics, stars, state.moves]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -64,27 +79,27 @@ function GameSession({ level }: { level: LevelDefinition }) {
           <View style={styles.boardCard}>
             <View style={styles.boardTop}><View style={styles.previewDot} /><Text style={styles.boardLabel}>LIVE SWITCHYARD</Text><View style={styles.boardTopFill} /><Text style={styles.boardSize}>{level.size} × {level.size}</Text></View>
             <View style={styles.boardCenter}><GameBoard board={state.board} controlsDisabled={busy || isPaused || completed} animation={animation} blocked={blocked} onArrowPress={exitArrow} onShiftRow={shift} onAnimationComplete={finishAnimation} /></View>
-            <View style={styles.boardFooter}><Text style={styles.boardFooterText}>Tap a clear cart · Use ‹ and › to shift a row</Text></View>
+            <View style={styles.boardFooter}><Text style={styles.boardFooterText}>{level.id <= 5 ? 'Tap a clear cart · Start with an unblocked arrow' : 'Shift rows using ‹ and ›, then clear each arrow'}</Text></View>
             {isPaused && <View style={styles.pauseOverlay}><Text style={styles.pausedTitle}>On a little break?</Text><Text style={styles.pausedText}>The switchyard is ready when you are.</Text><GameButton title="Resume game" onPress={togglePause} style={styles.resume} /><GameButton title="Level selection" kind="secondary" onPress={() => router.replace('/levels')} style={styles.resume} /></View>}
           </View>
 
-          <View style={styles.guideCard}><View style={styles.guideMark}><Text style={styles.guideMarkText}>i</Text></View><View style={styles.guideCopy}><Text style={styles.guideTitle}>How it works</Text><Text style={styles.guideText}>{level.tutorial} Shift rows left or right when a cart is blocked.</Text></View></View>
+          <View style={styles.guideCard}><View style={styles.guideMark}><Text style={styles.guideMarkText}>i</Text></View><View style={styles.guideCopy}><Text style={styles.guideTitle}>How it works</Text><Text style={styles.guideText}>{level.tutorial}{level.id >= 6 ? ' Every shift wraps a full row.' : ''}</Text></View></View>
           <View style={styles.actionRow}><GameButton title="Undo" kind="secondary" disabled={busy || state.history.length === 0 || isPaused || completed} onPress={undo} style={styles.actionButton} /><GameButton title="Restart" kind="secondary" disabled={busy || isPaused || completed} onPress={restart} style={styles.actionButton} /><GameButton title="Hint · soon" kind="secondary" disabled style={styles.actionButton} /></View>
           <Text style={styles.phaseNote}>ALL CARTS MUST EXIT TO WIN</Text>
         </View>
       </ScrollView>
       {completed && (
         <View style={styles.completeOverlay}>
-          <View style={styles.completeCard}>
+          <Animated.View entering={settings.reducedMotion ? undefined : ZoomIn.duration(340)} style={styles.completeCard}>
             <Text style={styles.eyebrow}>ALL CARTS DELIVERED</Text>
             <Text style={styles.completeTitle}>Switchyard cleared!</Text>
-            <Text style={styles.stars} accessibilityLabel={stars + ' out of three stars'}>{'★'.repeat(stars)}<Text style={styles.emptyStars}>{'☆'.repeat(3 - stars)}</Text></Text>
+            <Animated.Text entering={settings.reducedMotion ? undefined : FadeInDown.delay(180).duration(400)} style={styles.stars} accessibilityLabel={stars + ' out of three stars'}>{'★'.repeat(stars)}<Text style={styles.emptyStars}>{'☆'.repeat(3 - stars)}</Text></Animated.Text>
             <Text style={styles.completeMoves}>{state.moves} moves · Par {level.parMoves}</Text>
             <Text style={styles.completeBest}>Best in this session: {Math.min(state.moves, progress.records[level.id]?.bestMoves ?? state.moves)} moves</Text>
             {nextLevel ? <GameButton title={'Continue · Level ' + nextLevel.id} accessory="→" onPress={() => router.replace({ pathname: '/game/[id]', params: { id: String(nextLevel.id) } })} style={styles.completeButton} /> : <Text style={styles.completeBest}>You cleared all five starter puzzles!</Text>}
             <GameButton title="Play again" kind="secondary" onPress={restart} style={styles.completeButton} />
             <GameButton title="Level selection" kind="ghost" onPress={() => router.replace('/levels')} style={styles.completeButton} />
-          </View>
+          </Animated.View>
         </View>
       )}
     </SafeAreaView>

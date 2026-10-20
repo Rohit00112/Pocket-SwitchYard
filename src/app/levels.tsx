@@ -15,7 +15,7 @@ export default function LevelsScreen() {
           <Pressable accessibilityLabel="Back to home" accessibilityRole="button" onPress={() => router.back()} style={styles.back}><Text style={styles.backText}>‹</Text></Pressable>
           <Text style={styles.eyebrow}>CHOOSE YOUR ROUTE</Text>
           <Text style={styles.title}>Little adventures,{ '\n' }one grid at a time.</Text>
-          <Text style={styles.subheading}>Clear each route to unlock the next. Five puzzles are ready for you.</Text>
+          <Text style={styles.subheading}>Clear each route to unlock the next. Ten puzzles are ready for you.</Text>
           <View style={styles.grid}>
             {Array.from({ length: 10 }, (_, i) => {
               const id = i + 1;
@@ -39,7 +39,7 @@ export default function LevelsScreen() {
               );
             })}
           </View>
-          <Text style={styles.note}>Available now: {levels.length} solvable puzzles. Progress lasts for this app session; local saving comes in Phase 3.</Text>
+          <Text style={styles.note}>Available now: {levels.length} solver-verified puzzles. Stars and best moves are saved on this device.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

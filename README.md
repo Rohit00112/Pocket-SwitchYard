@@ -1,22 +1,21 @@
 # Pocket Switchyard
 
-A cozy Android-first offline arrow puzzle, built with Expo SDK 57, React Native, Expo Router, Reanimated and TypeScript.
+A cozy Android-first offline arrow puzzle made with Expo SDK 57, React Native, Expo Router, Reanimated and strict TypeScript.
 
-## Current checkpoint: Phase 2 — playable puzzles
+## Current checkpoint — Phase 3
 
-- Home and level selection screens with session-only unlocked levels, earned stars and best moves.
-- Five authored, solver-verified 4×4 puzzles. Levels 1–5 teach escape order. Row shifts are available now and become required in the next level pack (levels 6–10).
-- Tap a directional cart to exit when all cells between it and that board edge are empty.
-- Left/right controls cyclically shift a complete row by one cell. Every successful exit and row shift counts as one move.
-- Blocked taps shake without counting as moves. Animated inputs are locked to prevent duplicate moves.
-- Undo restores the previous board, move count and status. Restart resets the full puzzle.
-- Pause and resume, level-complete result, par-based 1–3 stars, replay and continue.
+- Ten authored, solver-verified 4×4 levels: levels 1–5 teach exit order; levels 6–10 require shifting rows.
+- Tap an arrow if the cells ahead of it to the relevant edge are all empty; otherwise it shakes without using a move.
+- Shift whole rows with ‹ and ›, with one-cell cyclic wraparound and animation input locking.
+- Undo, restart, pause, completion results, best moves and par-based 1–3 star scoring.
+- Versioned AsyncStorage save restores completed levels, stars, best move counts, and settings on next launch. Corrupted and outdated saves fall back safely.
+- Settings: sound effects, haptic feedback, reduced motion, and confirmed reset of progression while preserving settings.
+- Small bundled sound cues on valid move, blocked arrow and success; Reanimated completion reveal respects reduced motion.
+- Contextual tutorial text and clear hints for early levels. Hint action remains disabled until actual logic is built.
 
-**Current limitations:** Progress lasts until the app process is restarted. AsyncStorage, the dedicated settings screen, sound and haptics, more levels, advanced animations, and production asset work are planned for later phases. The hint button remains clearly disabled.
+All game data stays on the device; no backend or account is required.
 
 ## Start on Android
-
-You'll need Node.js, npm, an Android emulator or a physical device with a compatible Expo Go/development build.
 
 ```sh
 cd /path/to/pocket-switchyard
@@ -24,9 +23,9 @@ npm install
 npx expo start
 ```
 
-Open the QR code using an SDK-57-compatible Expo Go/development build. If an Android emulator is installed and running, press `a` in the Metro terminal.
+Open the Expo QR code with an SDK-57-compatible Expo Go or a development build. Press `a` for a configured Android emulator. Native dependencies now include AsyncStorage, expo-audio and expo-haptics. If running a previously built native app, make a new development build after adding these modules.
 
-## Verify
+## Validate
 
 ```sh
 npm test
@@ -35,34 +34,22 @@ npx expo lint
 npx expo export --platform android
 ```
 
-The Jest tests validate path checks, blocked/successful exits, wraparound row shifts, undo, restart, pause, win detection, scoring, malformed levels and shortest solution replay for all five levels.
+Automated tests verify movement rules, row wrapping, undo/restart, scoring, authored-level shortest winning sequences, and save-data parsing. Real-device QA is still needed for sound playback, haptics, animation smoothness, rapid taps, small screens, background/resume and cold-start restoration.
 
-## Try the game
+## Project locations
 
-1. Open **Play** and tap a cart whose way to its facing edge is entirely empty.
-2. Tap a blocked cart to see the shake and unchanged move counter.
-3. Use the small `‹` and `›` buttons beside a row. An arrow falling off a side reappears on the opposite side of that row.
-4. Use **Undo** to restore a move. Use **Restart** to return to the beginning.
-5. Clear the entire board to see the star result and unlock the next level.
+- `src/app`: Expo Router screens (Home, Levels, Game, Settings)
+- `src/components`: board, arrow tile, controls, buttons, branding
+- `src/game`: pure engine, scoring, BFS solver, curated levels, progression provider
+- `src/hooks`: UI timing and sound effects
+- `src/storage/save.ts`: versioned persisted-save format, sanitization and storage
+- `assets/sounds`: original short offline WAV cues
+- `tests`: game, level and saved-data tests
 
-Manual checks still needed on a real device: small-screen layout, quick successive taps, backgrounding during an animation, orientation lock, pause, restart, and navigation between levels.
+## Next — Phase 4
 
-## Architecture
+Grow the content to 40 validated boards, add real hints using a cached solver path, improve animations/layout for smaller Android devices, and conduct manual regression testing.
 
-- `src/app/`: file-based navigation/screens
-- `src/components/`: board, Reanimated cart tiles, row controls, buttons, branding
-- `src/game/engine.ts`: pure immutable game transitions
-- `src/game/solver.ts`: bounded BFS and level validation, run during development/tests
-- `src/game/levels.ts`: authored puzzle definitions and par values
-- `src/game/progress.tsx`: session progression (AsyncStorage will replace/extend this)
-- `src/hooks/useGame.ts`: input locking and animation orchestration
-- `src/theme/tokens.ts`: colors, spacing and direction styling
-- `tests/`: Jest engine and level checks
+## Android release
 
-## Next: Phase 3
-
-Add versioned AsyncStorage saves, rehydration, Settings (sound/haptics/reduced motion/reset), refined completion animations, tutorials, and the next level pack introducing required row shifts.
-
-## Android builds (planned for Phase 5)
-
-The Android package ID in `app.json` is a placeholder. Configure EAS and its preview profile before creating an installable APK or production AAB.
+The package identifier `com.example.pocketswitchyard` in `app.json` is a placeholder. Phase 5 will add EAS profiles, final icons/splash art, installable preview APK and Play Store testing preparation. Android JavaScript export alone is not an APK.

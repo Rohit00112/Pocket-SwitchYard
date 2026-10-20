@@ -3,10 +3,16 @@ import { levels } from '../src/game/levels';
 import { solveLevel, validateLevel } from '../src/game/solver';
 import type { LevelDefinition } from '../src/game/types';
 
-describe('starter puzzle pack', () => {
-  test('contains five sequential valid 4x4 boards', () => {
-    expect(levels.map((level) => level.id)).toEqual([1, 2, 3, 4, 5]);
-    for (const level of levels) expect(validateLevel(level)).toEqual([]);
+describe('puzzle pack', () => {
+  test('contains ten distinct sequential valid 4x4 boards', () => {
+    expect(levels.map((level) => level.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    const layouts = new Set<string>();
+    for (const level of levels) {
+      expect(level.size).toBe(4);
+      expect(validateLevel(level)).toEqual([]);
+      layouts.add(level.initialBoard.map((row) => row.map((cell) => cell?.direction ?? '.').join(',')).join('/'));
+    }
+    expect(layouts.size).toBe(levels.length);
   });
 
   test.each(levels)('level $id has a verified shortest solution that can be replayed', (level) => {
@@ -23,7 +29,17 @@ describe('starter puzzle pack', () => {
     expect(state.status).toBe('complete');
     expect(state.moves).toBe(solution.moves);
     expect(state.history).toHaveLength(solution.moves);
-    expect(solution.actions.some((action) => action.type === 'SHIFT_ROW')).toBe(false);
+    const arrowCount = level.initialBoard.flat().filter((cell) => cell !== null).length;
+    const shiftCount = solution.actions.filter((action) => action.type === 'SHIFT_ROW').length;
+    expect(shiftCount).toBe(solution.moves - arrowCount);
+    if (level.id >= 6) {
+      // A zero-shift solution would use exactly one move per arrow, so it
+      // cannot exist if the shortest solution is longer than arrowCount.
+      expect(solution.moves).toBeGreaterThan(arrowCount);
+      expect(shiftCount).toBeGreaterThan(0);
+    } else {
+      expect(shiftCount).toBe(0);
+    }
   });
 
   test('rejects incorrectly sized boards, duplicate IDs and invalid directions', () => {
